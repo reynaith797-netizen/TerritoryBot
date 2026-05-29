@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Territory Game</title>
+    <style>
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body {
+            background: linear-gradient(135deg, #1a472a, #0e2a1a);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 16px;
+        }
+        .game-container {
+            max-width: 500px;
+            width: 100%;
+            background: rgba(0,0,0,0.7);
+            border-radius: 48px;
+            padding: 20px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,215,0,0.3);
+        }
+        .country-name {
+            text-align: center;
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffd966;
+            text-shadow: 0 2px 5px black;
+            margin-bottom: 10px;
+        }
+        .stats {
+            background: #1e2a1e;
+            border-radius: 32px;
+            padding: 16px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            color: #f0f0e0;
+        }
+        .stat-card {
+            background: #2a3a2a;
+            border-radius: 24px;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            box-shadow: inset 0 0 5px rgba(0,0,0,0.5), 0 5px 10px rgba(0,0,0,0.3);
+        }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: #ffb347;
+            display: block;
+        }
+        .stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .production {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+        .prod-btn {
+            background: #ffb347;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 60px;
+            font-weight: bold;
+            font-size: 18px;
+            color: #1e2a1e;
+            width: 45%;
+            transition: 0.1s linear;
+            box-shadow: 0 5px 0 #a05e10;
+            cursor: pointer;
+            text-align: center;
+        }
+        .prod-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #a05e10; }
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .action-btn {
+            background: #2c3e2c;
+            border: 1px solid #ffd966;
+            color: #ffddaa;
+            padding: 12px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-size: 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .action-btn:active { background: #3e553e; transform: scale(0.98); }
+        .danger-btn {
+            background: #6a1e1e;
+            border-color: #ff8888;
+            color: #ffc0c0;
+        }
+        .reset-btn {
+            background: #333;
+            border-color: #aaa;
+            margin-top: 8px;
+        }
+        .message-area {
+            background: #000000aa;
+            border-radius: 28px;
+            padding: 12px;
+            margin-top: 20px;
+            font-size: 14px;
+            text-align: center;
+            color: #dddd88;
+        }
+        h3 { margin: 0 0 8px 0; font-size: 18px; text-align: center; color: #ffd966; }
+        .enemy-list {
+            background: #1a251a;
+            border-radius: 28px;
+            padding: 12px;
+            margin-top: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .enemy-item {
+            background: #2a352a;
+            margin: 6px 0;
+            padding: 8px 12px;
+            border-radius: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .attack-btn {
+            background: #b34e4e;
+            border: none;
+            color: white;
+            border-radius: 40px;
+            padding: 6px 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        footer {
+            font-size: 10px;
+            text-align: center;
+            color: #88aa88;
+            margin-top: 16px;
+        }
+        button {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="game-container" id="gameRoot">
+    <div class="country-name" id="countryName">Моя Страна</div>
+    <div class="stats" id="statsPanel">
+        <!-- динамическая статистика -->
+    </div>
+    <div class="production">
+        <button class="prod-btn" id="produceFood">🍗 Еда +50</button>
+        <button class="prod-btn" id="produceIron">🔩 Железо +30</button>
+    </div>
+    <div class="actions">
+        <button class="action-btn" id="showProfileBtn">🏰 Моя страна</button>
+        <button class="action-btn" id="showPlayersBtn">🌍 Список стран</button>
+    </div>
+    <div id="dynamicPanel">
+        <!-- здесь будет рейтинг/список стран -->
+    </div>
+    <div class="message-area" id="messageBox">
+        ⚔️ Добро пожаловать, правитель!
+    </div>
+    <footer>🎮 1 игровой день = 1 час | Война до сдачи</footer>
+</div>
+
+<script>
+    // ------------------- ИГРОВОЕ ЯДРО -------------------
+    let currentPlayerId = null;
+    let allPlayers = {};     // playerId -> данные
+
+    // Инициализация или загрузка из localStorage
+    function loadGameData() {
+        const saved = localStorage.getItem("territoryGameData");
+        if(saved) {
+            try {
+                const data = JSON.parse(saved);
+                allPlayers = data.allPlayers || {};
+                currentPlayerId = data.currentPlayerId;
+            } catch(e) { console.warn(e); }
+        }
+        // если нет игрока — создаём нового
+        if(!currentPlayerId || !allPlayers[currentPlayerId]) {
+            const newId = "player_" + Date.now() + "_" + Math.floor(Math.random()*10000);
+            currentPlayerId = newId;
+            const playerName = prompt("🏰 Введи название своей страны:","Моя Держава");
+            const finalName = (playerName && playerName.trim()) ? playerName.trim() : "Великое княжество";
+            allPlayers[currentPlayerId] = {
+                id: currentPlayerId,
+                name: finalName,
+                gold: 1200,
+                food: 600,
+                iron: 400,
+                citizens: 65,
+                power: 680
+            };
+            saveGameData();
+        }
+        renderUI();
+    }
+
+    function saveGameData() {
+        const toStore = {
+            allPlayers: allPlayers,
+            currentPlayerId: currentPlayerId
+        };
+        localStorage.setItem("territoryGameData", JSON.stringify(toStore));
+    }
+
+    function getCurrentPlayer() {
+        return allPlayers[currentPlayerId];
+    }
+
+    function updatePlayerStats(playerId, newStats) {
+        if(allPlayers[playerId]) {
+            Object.assign(allPlayers[playerId], newStats);
+            saveGameData();
+            renderUI();
+        }
+    }
+
+    function addResource(resType, amount) {
+        const p = getCurrentPlayer();
+        if(!p) return;
+        if(resType === 'food') p.food += amount;
+        else if(resType === 'iron') p.iron += amount;
+        else if(resType === 'gold') p.gold += amount;
+        else if(resType === 'power') p.power += amount;
+        if(p.food < 0) p.food = 0;
+        if(p.iron < 0) p.iron = 0;
+        if(p.gold < 0) p.gold = 0;
+        if(p.power < 0) p.power = 0;
+        saveGameData();
+        renderUI();
+        showMessage(`✅ +${amount} ${resType === 'food' ? 'еды' : (resType === 'iron' ? 'железа' : (resType==='gold'?'золота':'силы'))}`, 1500);
+    }
+
+    function showMessage(text, duration=2000) {
+        const msgDiv = document.getElementById('messageBox');
+        if(msgDiv) {
+            msgDiv.innerHTML = text;
+            setTimeout(() => {
+                if(document.getElementById('messageBox')) 
+                    document.getElementById('messageBox').innerHTML = '⚔️ Готов к действиям.';
+            }, duration);
+        }
+    }
+
+    // ---- Война (симуляция: кто сильнее побеждает, слабый отдаёт ресурсы) ----
+    function declareWar(targetId) {
+        const attacker = getCurrentPlayer();
+        const defender = allPlayers[targetId];
+        if(!attacker || !defender) return;
+        if(attacker.id === defender.id) { showMessage("Нельзя воевать с самим собой"); return; }
+        
+        let attackerPower = attacker.power;
+        let defenderPower = defender.power;
+        
+        let logMsg = `⚔️ ВОЙНА: ${attacker.name} атакует ${defender.name}!\n`;
+        if(attackerPower > defenderPower) {
+            let lootGold = Math.floor(defender.gold * 0.3);
+            let lootFood = Math.floor(defender.food * 0.2);
+            let lootIron = Math.floor(defender.iron * 0.2);
+            attacker.gold += lootGold;
+            attacker.food += lootFood;
+            attacker.iron += lootIron;
+            defender.gold = Math.floor(defender.gold * 0.7);
+            defender.food = Math.floor(defender.food * 0.8);
+            defender.iron = Math.floor(defender.iron * 0.8);
+            // ослабление защитника
+            defender.power = Math.max(50, defender.power - Math.floor(defenderPower*0.25));
+            // победитель тоже теряет войска
+            attacker.power = Math.max(50, attacker.power - Math.floor(attackerPower*0.1));
+            logMsg += `🏆 ПОБЕДА! Захвачено ресурсов: золота ${lootGold}, еды ${lootFood}, железа ${lootIron}.`;
+        } else if(attackerPower < defenderPower) {
+            let lootGold = Math.floor(attacker.gold * 0.25);
+            let lootFood = Math.floor(attacker.food * 0.2);
+            let lootIron = Math.floor(attacker.iron * 0.2);
+            defender.gold += lootGold;
+            defender.food += lootFood;
+            defender.iron += lootIron;
+            attacker.gold = Math.floor(attacker.gold * 0.75);
+            attacker.food = Math.floor(attacker.food * 0.8);
+            attacker.iron = Math.floor(attacker.iron * 0.8);
+            attacker.power = Math.max(30, attacker.power - Math.floor(attackerPower*0.35));
+            logMsg += `💔 ПОРАЖЕНИЕ! Враг забрал часть ресурсов.`;
+        } else {
+            // ничья – небольшие потери
+            attacker.power = Math.max(50, attacker.power - Math.floor(attackerPower*0.15));
+            defender.power = Math.max(50, defender.power - Math.floor(defenderPower*0.15));
+            logMsg += `🤝 Ничья! Обе армии ослаблены.`;
+        }
+        saveGameData();
+        renderUI();
+        showMessage(logMsg, 4000);
+    }
+
+    // ---- отображение панели статистики ----
+    function renderStats() {
+        const p = getCurrentPlayer();
+        if(!p) return;
+        const panel = document.getElementById('statsPanel');
+        if(panel) {
+            panel.innerHTML = `
+                <div class="stat-card"><span class="stat-value">${Math.floor(p.gold)}</span><span class="stat-label">💰 ЗОЛОТО</span></div>
+                <div class="stat-card"><span class="stat-value">${Math.floor(p.food)}</span><span class="stat-label">🍗 ЕДА</span></div>
+                <div class="stat-card"><span class="stat-value">${Math.floor(p.iron)}</span><span class="stat-label">🔩 ЖЕЛЕЗО</span></div>
+                <div class="stat-card"><span class="stat-value">${Math.floor(p.citizens)}</span><span class="stat-label">👥 ГРАЖДАНЕ</span></div>
+                <div class="stat-card"><span class="stat-value">${Math.floor(p.power)}</span><span class="stat-label">⚔️ ВОЕННАЯ МОЩЬ</span></div>
+                <div class="stat-card"><span class="stat-value">${Object.keys(allPlayers).length}</span><span class="stat-label">🌍 ВСЕГО СТРАН</span></div>
+            `;
+        }
+        const nameDiv = document.getElementById('countryName');
+        if(nameDiv) nameDiv.innerText = p.name;
+    }
+
+    function renderPlayersList() {
+        const container = document.getElementById('dynamicPanel');
+        if(!container) return;
+        const current = getCurrentPlayer();
+        let enemies = Object.values(allPlayers).filter(pl => pl.id !== current.id);
+        if(enemies.length === 0) {
+            container.innerHTML = `<div class="enemy-list"><div style="padding:8px">🌍 Других стран пока нет. Пригласи друзей!</div></div>`;
+            return;
+        }
+        let html = `<div class="enemy-list"><h3>⚔️ ДРУГИЕ СТРАНЫ</h3>`;
+        enemies.forEach(enemy => {
+            html += `
+                <div class="enemy-item">
+                    <div><b>${enemy.name}</b><br>⚔️ сила ${Math.floor(enemy.power)}</div>
+                    <button class="attack-btn" data-id="${enemy.id}">⚔️ ВОЙНА</button>
+                </div>
+            `;
+        });
+        html += `</div>`;
+        container.innerHTML = html;
+        // вешаем обработчики
+        document.querySelectorAll('.attack-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const targetId = btn.getAttribute('data-id');
+                if(targetId) declareWar(targetId);
+            });
+        });
+    }
+
+    function renderProfile() {
+        const p = getCurrentPlayer();
+        const container = document.getElementById('dynamicPanel');
+        if(container) {
+            container.innerHTML = `
+                <div class="enemy-list" style="text-align:center">
+                    <h3>📜 УКАЗЫ ПРАВИТЕЛЯ</h3>
+                    <div>🏰 ${p.name}</div>
+                    <div>💰 Бюджет: ${Math.floor(p.gold)} | 👥 Население: ${Math.floor(p.citizens)}</div>
+                    <div>🍗 Продовольствие: ${Math.floor(p.food)} | 🔩 Военный металл: ${Math.floor(p.iron)}</div>
+                    <div>⚔️ Армия: ${Math.floor(p.power)}</div>
+                    <hr style="border-color:#ffd966; margin:12px">
+                    <button id="resetGameBtn" class="action-btn reset-btn">♻️ НАЧАТЬ НОВУЮ ИГРУ</button>
+                </div>
+            `;
+            const resetBtn = document.getElementById('resetGameBtn');
+            if(resetBtn) {
+                resetBtn.addEventListener('click', () => {
+                    if(confirm("Сбросить прогресс? Все ваши земли и ресурсы исчезнут.")) {
+                        localStorage.removeItem("territoryGameData");
+                        location.reload();
+                    }
+                });
+            }
+        }
+    }
+
+    function renderUI() {
+        renderStats();
+        const currentPanel = document.getElementById('dynamicPanel');
+        if(currentPanel && currentPanel.innerHTML.trim() === '') {
+            renderPlayersList();
+        }
+    }
+
+    // обработка кнопок производства и меню
+    function bindActions() {
+        const foodBtn = document.getElementById('produceFood');
+        const ironBtn = document.getElementById('produceIron');
+        const profileBtn = document.getElementById('showProfileBtn');
+        const playersBtn = document.getElementById('showPlayersBtn');
+        if(foodBtn) foodBtn.onclick = () => addResource('food', 50);
+        if(ironBtn) ironBtn.onclick = () => addResource('iron', 30);
+        if(profileBtn) profileBtn.onclick = () => renderProfile();
+        if(playersBtn) playersBtn.onclick = () => renderPlayersList();
+    }
+
+    // запуск приложения
+    function init() {
+        loadGameData();
+        bindActions();
+        setInterval(() => {
+            // авто-тик: небольшая эмитация расходов еды
+            const p = getCurrentPlayer();
+            if(p) {
+                let consume = Math.floor(p.citizens * 0.2);
+                if(p.food > consume) p.food -= consume;
+                else {
+                    p.food = 0;
+                    p.citizens = Math.max(5, Math.floor(p.citizens * 0.95));
+                    showMessage("😫 Голод! Население сокращается...", 2000);
+                }
+                p.gold += Math.floor(p.citizens * 0.3);
+                p.citizens = Math.floor(p.citizens + (p.food > p.citizens ? p.citizens*0.02 : 0));
+                if(p.citizens < 5) p.citizens = 5;
+                if(p.gold < 0) p.gold = 0;
+                saveGameData();
+                renderStats();
+            }
+        }, 60000); // каждую минуту небольшая экономическая имитация
+        renderUI();
+    }
+    init();
+</script>
+</body>
+  </html>
